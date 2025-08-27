@@ -208,7 +208,7 @@ function imsanity_resize_from_id( $id = 0 ) {
 		}
 
 		// Let folks filter the allowed mime-types for resizing.
-		$allowed_types = apply_filters( 'imsanity_allowed_mimes', array( 'image/png', 'image/gif', 'image/jpeg' ), $oldpath );
+		$allowed_types = apply_filters( 'imsanity_allowed_mimes', array( 'image/png', 'image/gif', 'image/jpeg', 'image/webp' ), $oldpath );
 		if ( is_string( $allowed_types ) ) {
 			$allowed_types = array( $allowed_types );
 		} elseif ( ! is_array( $allowed_types ) ) {

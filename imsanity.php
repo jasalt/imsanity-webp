@@ -184,20 +184,24 @@ function imsanity_handle_upload( $params ) {
 		return $params;
 	}
 
-	// If preferences specify so then we can convert an original bmp or png file into jpg.
+	// If preferences specify so then we can convert an original bmp, png, or jpeg file into webp.
 	if ( ( 'image/bmp' === $params['type'] || 'image/x-ms-bmp' === $params['type'] ) && imsanity_get_option( 'imsanity_bmp_to_jpg', IMSANITY_DEFAULT_BMP_TO_JPG ) ) {
-		$params = imsanity_convert_to_jpg( 'bmp', $params );
+		$params = imsanity_convert_to_webp( 'bmp', $params );
 	}
 
 	if ( 'image/png' === $params['type'] && imsanity_get_option( 'imsanity_png_to_jpg', IMSANITY_DEFAULT_PNG_TO_JPG ) ) {
-		$params = imsanity_convert_to_jpg( 'png', $params );
+		$params = imsanity_convert_to_webp( 'png', $params );
+	}
+
+	if ( 'image/jpeg' === $params['type'] && imsanity_get_option( 'imsanity_jpeg_to_webp', false ) ) {
+		$params = imsanity_convert_to_webp( 'jpeg', $params );
 	}
 
 	// Make sure this is a type of image that we want to convert and that it exists.
 	$oldpath = $params['file'];
 
 	// Let folks filter the allowed mime-types for resizing.
-	$allowed_types = apply_filters( 'imsanity_allowed_mimes', array( 'image/png', 'image/gif', 'image/jpeg' ), $oldpath );
+	$allowed_types = apply_filters( 'imsanity_allowed_mimes', array( 'image/png', 'image/gif', 'image/jpeg', 'image/webp' ), $oldpath );
 	if ( is_string( $allowed_types ) ) {
 		$allowed_types = array( $allowed_types );
 	} elseif ( ! is_array( $allowed_types ) ) {
@@ -294,68 +298,79 @@ function imsanity_handle_upload( $params ) {
 
 
 /**
- * Read in the image file from the params and then save as a new jpg file.
+ * Read in the image file from the params and then save as a new webp file.
  * if successful, remove the original image and alter the return
- * parameters to return the new jpg instead of the original
+ * parameters to return the new webp instead of the original
  *
- * @param string $type Type of the image to be converted: 'bmp' or 'png'.
+ * @param string $type Type of the image to be converted: 'bmp', 'png', or 'jpeg'.
  * @param array  $params The upload parameters.
  * @return array altered params
  */
-function imsanity_convert_to_jpg( $type, $params ) {
+function imsanity_convert_to_webp( $type, $params ) {
 
 	if ( apply_filters( 'imsanity_disable_convert', false, $type, $params ) ) {
 		return $params;
 	}
 
-	$img = null;
-
-	if ( 'bmp' === $type ) {
-		if ( ! function_exists( 'imagecreatefrombmp' ) ) {
-			return $params;
-		}
-		$img = imagecreatefrombmp( $params['file'] );
-	} elseif ( 'png' === $type ) {
-		// Prevent converting PNG images with alpha/transparency, unless overridden by the user.
-		if ( apply_filters( 'imsanity_skip_alpha', imsanity_has_alpha( $params['file'] ), $params['file'] ) ) {
-			return $params;
-		}
-		if ( ! function_exists( 'imagecreatefrompng' ) ) {
-			return wp_handle_upload_error( $params['file'], esc_html__( 'Imsanity requires the GD library to convert PNG images to JPG', 'imsanity' ) );
-		}
-
-		$input = imagecreatefrompng( $params['file'] );
-		// convert png transparency to white.
-		$img = imagecreatetruecolor( imagesx( $input ), imagesy( $input ) );
-		imagefill( $img, 0, 0, imagecolorallocate( $img, 255, 255, 255 ) );
-		imagealphablending( $img, true );
-		imagecopy( $img, $input, 0, 0, 0, 0, imagesx( $input ), imagesy( $input ) );
-	} else {
-		return wp_handle_upload_error( $params['file'], esc_html__( 'Unknown image type specified in imsanity_convert_to_jpg', 'imsanity' ) );
+	// Check if ImageMagick extension is available
+	if ( ! extension_loaded( 'imagick' ) ) {
+		return wp_handle_upload_error( $params['file'], esc_html__( 'Imsanity requires the ImageMagick extension to convert images to WebP', 'imsanity' ) );
 	}
 
-	// We need to change the extension from the original to .jpg so we have to ensure it will be a unique filename.
-	$uploads     = wp_upload_dir();
-	$oldfilename = wp_basename( $params['file'] );
-	$newfilename = wp_basename( str_ireplace( '.' . $type, '.jpg', $oldfilename ) );
-	$newfilename = wp_unique_filename( $uploads['path'], $newfilename );
+	// Check if WebP format is supported by ImageMagick
+	$imagick = new Imagick();
+	$formats = $imagick->queryFormats( 'WEBP' );
+	if ( empty( $formats ) ) {
+		return wp_handle_upload_error( $params['file'], esc_html__( 'ImageMagick does not support WebP format', 'imsanity' ) );
+	}
 
-	$quality = imsanity_get_option( 'imsanity_quality', IMSANITY_DEFAULT_QUALITY );
+	try {
+		$imagick = new Imagick( $params['file'] );
+		
+		// Set WebP quality
+		$quality = imsanity_get_option( 'imsanity_quality', IMSANITY_DEFAULT_QUALITY );
+		$imagick->setImageCompressionQuality( $quality );
+		
+		// Set format to WebP
+		$imagick->setImageFormat( 'webp' );
 
-	if ( imagejpeg( $img, $uploads['path'] . '/' . $newfilename, $quality ) ) {
-		// Conversion succeeded: remove the original bmp & remap the params.
+		// We need to change the extension from the original to .webp so we have to ensure it will be a unique filename.
+		$uploads     = wp_upload_dir();
+		$oldfilename = wp_basename( $params['file'] );
+		$newfilename = preg_replace( '/\.[^.]+$/', '.webp', $oldfilename );
+		$newfilename = wp_unique_filename( $uploads['path'], $newfilename );
+
+		$new_file_path = $uploads['path'] . '/' . $newfilename;
+
+		// Write the WebP image
+		if ( $imagick->writeImage( $new_file_path ) ) {
+			// Conversion succeeded: remove the original file & remap the params.
+			unlink( $params['file'] );
+
+			$params['file'] = $new_file_path;
+			$params['url']  = $uploads['url'] . '/' . $newfilename;
+			$params['type'] = 'image/webp';
+		} else {
+			unlink( $params['file'] );
+			return wp_handle_upload_error(
+				$oldfilename,
+				/* translators: %s: the image mime type */
+				sprintf( esc_html__( 'Imsanity was unable to process the %s file. If you continue to see this error you may need to disable the conversion option in the Imsanity settings.', 'imsanity' ), $type )
+			);
+		}
+
+		$imagick->clear();
+		$imagick->destroy();
+
+	} catch ( Exception $e ) {
 		unlink( $params['file'] );
-
-		$params['file'] = $uploads['path'] . '/' . $newfilename;
-		$params['url']  = $uploads['url'] . '/' . $newfilename;
-		$params['type'] = 'image/jpeg';
-	} else {
-		unlink( $params['file'] );
-
 		return wp_handle_upload_error(
-			$oldfilename,
-			/* translators: %s: the image mime type */
-			sprintf( esc_html__( 'Imsanity was unable to process the %s file. If you continue to see this error you may need to disable the conversion option in the Imsanity settings.', 'imsanity' ), $type )
+			$params['file'],
+			sprintf(
+				/* translators: %s: error message */
+				esc_html__( 'ImageMagick error during WebP conversion: %s', 'imsanity' ),
+				$e->getMessage()
+			)
 		);
 	}
 

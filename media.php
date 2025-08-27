@@ -72,7 +72,7 @@ function imsanity_custom_column( $column_name, $id, $meta = null ) {
 			return;
 		}
 		// Let folks filter the allowed mime-types for resizing.
-		$allowed_types = apply_filters( 'imsanity_allowed_mimes', array( 'image/png', 'image/gif', 'image/jpeg' ), $file_path );
+		$allowed_types = apply_filters( 'imsanity_allowed_mimes', array( 'image/png', 'image/gif', 'image/jpeg', 'image/webp' ), $file_path );
 		if ( is_string( $allowed_types ) ) {
 			$allowed_types = array( $allowed_types );
 		} elseif ( ! is_array( $allowed_types ) ) {

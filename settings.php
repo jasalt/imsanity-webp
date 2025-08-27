@@ -170,6 +170,7 @@ function imsanity_get_default_multisite_settings() {
 	$data->imsanity_max_width_other    = IMSANITY_DEFAULT_MAX_WIDTH;
 	$data->imsanity_bmp_to_jpg         = IMSANITY_DEFAULT_BMP_TO_JPG;
 	$data->imsanity_png_to_jpg         = IMSANITY_DEFAULT_PNG_TO_JPG;
+	$data->imsanity_jpeg_to_webp       = false;
 	$data->imsanity_quality            = IMSANITY_DEFAULT_QUALITY;
 	$data->imsanity_delete_originals   = false;
 	return $data;
@@ -317,7 +318,7 @@ function imsanity_network_settings() {
 		</tr>
 		<tr>
 			<th scope="row">
-				<label for"imsanity_bmp_to_jpg"><?php esc_html_e( 'Convert BMP to JPG', 'imsanity' ); ?></label>
+				<label for"imsanity_bmp_to_jpg"><?php esc_html_e( 'Convert BMP to WebP', 'imsanity' ); ?></label>
 			</th>
 			<td>
 				<input type="checkbox" id="imsanity_bmp_to_jpg" name="imsanity_bmp_to_jpg" value="true" <?php checked( $settings->imsanity_bmp_to_jpg ); ?> />
@@ -326,7 +327,7 @@ function imsanity_network_settings() {
 		</tr>
 		<tr>
 			<th scope="row">
-				<label for="imsanity_png_to_jpg"><?php esc_html_e( 'Convert PNG to JPG', 'imsanity' ); ?></label>
+				<label for="imsanity_png_to_jpg"><?php esc_html_e( 'Convert PNG to WebP', 'imsanity' ); ?></label>
 			</th>
 			<td>
 				<input type="checkbox" id="imsanity_png_to_jpg" name="imsanity_png_to_jpg" value="true" <?php checked( $settings->imsanity_png_to_jpg ); ?> />
@@ -337,6 +338,15 @@ function imsanity_network_settings() {
 					'<a href="' . esc_url( admin_url( 'plugin-install.php?s=ewww+image+optimizer&tab=search&type=term' ) ) . '">EWWW Image Optimizer</a>'
 				);
 				?>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row">
+				<label for="imsanity_jpeg_to_webp"><?php esc_html_e( 'Convert JPEG to WebP', 'imsanity' ); ?></label>
+			</th>
+			<td>
+				<input type="checkbox" id="imsanity_jpeg_to_webp" name="imsanity_jpeg_to_webp" value="true" <?php checked( $settings->imsanity_jpeg_to_webp ); ?> />
+				<?php esc_html_e( 'Convert JPEG images to WebP format for better compression and smaller file sizes.', 'imsanity' ); ?>
 			</td>
 		</tr>
 		<tr>
@@ -385,6 +395,7 @@ function imsanity_network_settings_update() {
 	$data->imsanity_max_width_other    = isset( $_POST['imsanity_max_width_other'] ) ? (int) $_POST['imsanity_max_width_other'] : 0;
 	$data->imsanity_bmp_to_jpg         = ! empty( $_POST['imsanity_bmp_to_jpg'] );
 	$data->imsanity_png_to_jpg         = ! empty( $_POST['imsanity_png_to_jpg'] );
+	$data->imsanity_jpeg_to_webp       = ! empty( $_POST['imsanity_jpeg_to_webp'] );
 	$data->imsanity_quality            = isset( $_POST['imsanity_quality'] ) ? imsanity_jpg_quality( intval( $_POST['imsanity_quality'] ) ) : 82;
 	$data->imsanity_delete_originals   = ! empty( $_POST['imsanity_delete_originals'] );
 
@@ -439,6 +450,9 @@ function imsanity_get_multisite_settings() {
 		$_imsanity_multisite_settings->imsanity_override_site = ! empty( $_imsanity_multisite_settings->imsanity_override_site ) ? '1' : '0';
 		$_imsanity_multisite_settings->imsanity_bmp_to_jpg    = ! empty( $_imsanity_multisite_settings->imsanity_bmp_to_jpg ) ? true : false;
 		$_imsanity_multisite_settings->imsanity_png_to_jpg    = ! empty( $_imsanity_multisite_settings->imsanity_png_to_jpg ) ? true : false;
+		if ( ! property_exists( $_imsanity_multisite_settings, 'imsanity_jpeg_to_webp' ) ) {
+			$_imsanity_multisite_settings->imsanity_jpeg_to_webp = false;
+		}
 		if ( ! property_exists( $_imsanity_multisite_settings, 'imsanity_delete_originals' ) ) {
 			$_imsanity_multisite_settings->imsanity_delete_originals = false;
 		}
@@ -499,6 +513,7 @@ function imsanity_set_defaults() {
 	add_option( 'imsanity_max_height_other', $settings->imsanity_max_height_other, '', false );
 	add_option( 'imsanity_bmp_to_jpg', $settings->imsanity_bmp_to_jpg, '', false );
 	add_option( 'imsanity_png_to_jpg', $settings->imsanity_png_to_jpg, '', false );
+	add_option( 'imsanity_jpeg_to_webp', $settings->imsanity_jpeg_to_webp, '', false );
 	add_option( 'imsanity_quality', $settings->imsanity_quality, '', false );
 	add_option( 'imsanity_delete_originals', $settings->imsanity_delete_originals, '', false );
 	if ( ! get_option( 'imsanity_version' ) ) {
@@ -526,6 +541,7 @@ function imsanity_register_settings() {
 	register_setting( 'imsanity-settings-group', 'imsanity_max_width_other', 'intval' );
 	register_setting( 'imsanity-settings-group', 'imsanity_bmp_to_jpg', 'boolval' );
 	register_setting( 'imsanity-settings-group', 'imsanity_png_to_jpg', 'boolval' );
+	register_setting( 'imsanity-settings-group', 'imsanity_jpeg_to_webp', 'boolval' );
 	register_setting( 'imsanity-settings-group', 'imsanity_quality', 'imsanity_jpg_quality' );
 	register_setting( 'imsanity-settings-group', 'imsanity_delete_originals', 'boolval' );
 }
@@ -788,18 +804,18 @@ function imsanity_settings_page_form() {
 
 		<tr>
 			<th scope="row">
-				<label for='imsanity_quality' ><?php esc_html_e( 'JPG image quality', 'imsanity' ); ?>
+				<label for='imsanity_quality' ><?php esc_html_e( 'Image quality', 'imsanity' ); ?>
 			</th>
 			<td>
 				<input type='text' id='imsanity_quality' name='imsanity_quality' class='small-text' value='<?php echo (int) imsanity_jpg_quality(); ?>' />
 				<?php esc_html_e( 'Usable values are 1-92.', 'imsanity' ); ?>
-				<p class='description'><?php esc_html_e( 'Only used when resizing images, does not affect thumbnails.', 'imsanity' ); ?></p>
+				<p class='description'><?php esc_html_e( 'Only used when resizing images or converting to WebP, does not affect thumbnails.', 'imsanity' ); ?></p>
 			</td>
 		</tr>
 
 		<tr>
 			<th scope="row">
-				<label for="imsanity_bmp_to_jpg"><?php esc_html_e( 'Convert BMP To JPG', 'imsanity' ); ?></label>
+				<label for="imsanity_bmp_to_jpg"><?php esc_html_e( 'Convert BMP To WebP', 'imsanity' ); ?></label>
 			</th>
 			<td>
 				<input type="checkbox" id="imsanity_bmp_to_jpg" name="imsanity_bmp_to_jpg" value="true" <?php checked( (bool) get_option( 'imsanity_bmp_to_jpg', IMSANITY_DEFAULT_BMP_TO_JPG ) ); ?> />
@@ -808,7 +824,7 @@ function imsanity_settings_page_form() {
 		</tr>
 		<tr>
 			<th scope="row">
-				<label for="imsanity_png_to_jpg"><?php esc_html_e( 'Convert PNG To JPG', 'imsanity' ); ?></label>
+				<label for="imsanity_png_to_jpg"><?php esc_html_e( 'Convert PNG To WebP', 'imsanity' ); ?></label>
 			</th>
 			<td>
 				<input type="checkbox" id="imsanity_png_to_jpg" name="imsanity_png_to_jpg" value="true" <?php checked( (bool) get_option( 'imsanity_png_to_jpg', IMSANITY_DEFAULT_PNG_TO_JPG ) ); ?> />
@@ -819,6 +835,15 @@ function imsanity_settings_page_form() {
 					'<a href="' . esc_url( admin_url( 'plugin-install.php?s=ewww+image+optimizer&tab=search&type=term' ) ) . '">EWWW Image Optimizer</a>'
 				);
 				?>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row">
+				<label for="imsanity_jpeg_to_webp"><?php esc_html_e( 'Convert JPEG To WebP', 'imsanity' ); ?></label>
+			</th>
+			<td>
+				<input type="checkbox" id="imsanity_jpeg_to_webp" name="imsanity_jpeg_to_webp" value="true" <?php checked( (bool) get_option( 'imsanity_jpeg_to_webp', false ) ); ?> />
+				<?php esc_html_e( 'Convert JPEG images to WebP format for better compression and smaller file sizes.', 'imsanity' ); ?>
 			</td>
 		</tr>
 		<tr>
